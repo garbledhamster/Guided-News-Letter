@@ -1,125 +1,272 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <title>Newsletter System Wizard</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Newsletter Wizard</title>
 
+    <link rel="icon" href="data:," />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: [
-                "ui-sans-serif",
-                "system-ui",
-                "-apple-system",
-                "Segoe UI",
-                "Roboto",
-                "Helvetica",
-                "Arial",
-                "Apple Color Emoji",
-                "Segoe UI Emoji"
-              ]
-            }
-          }
-        }
-      };
-    </script>
-
     <link rel="stylesheet" href="./style.css" />
   </head>
 
-  <body class="h-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
-    <div id="app" class="h-full"></div>
+  <body class="min-h-screen bg-zinc-950 text-zinc-100">
+    <div id="app" class="min-h-screen">
+      <header
+        class="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur"
+      >
+        <div
+          class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="grid h-9 w-9 place-items-center rounded-xl border border-zinc-800 bg-zinc-900"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 4h12v16H6z" />
+                <path d="M9 8h6" />
+                <path d="M9 12h6" />
+                <path d="M9 16h6" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-sm font-semibold leading-tight">
+                Newsletter Wizard
+              </div>
+              <div class="text-xs text-zinc-400 leading-tight">
+                Guided workflow: validated topic → research → outline → draft → edit
+              </div>
+            </div>
+          </div>
 
-    <template id="tpl-icon-sun">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0-1.414-1.414M7.05 7.05 5.636 5.636M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
-        />
-      </svg>
-    </template>
+          <div class="flex items-center gap-2">
+            <button id="btnExport" class="btn btn-secondary" type="button">
+              Export
+            </button>
+            <button id="btnReset" class="btn btn-secondary" type="button">
+              Reset
+            </button>
+            <button id="btnSettings" class="btn btn-primary" type="button">
+              Settings
+            </button>
+          </div>
+        </div>
+      </header>
 
-    <template id="tpl-icon-moon">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M21 13.4A8.5 8.5 0 0 1 10.6 3 6.5 6.5 0 1 0 21 13.4Z"
-        />
-      </svg>
-    </template>
+      <main class="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12">
+        <aside class="lg:col-span-3">
+          <div class="panel">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-sm font-semibold">Steps</div>
+              <div id="stepMeta" class="text-xs text-zinc-400"></div>
+            </div>
+            <div class="mt-3 space-y-1" id="stepList"></div>
+          </div>
 
-    <template id="tpl-icon-check">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M20 6 9 17l-5-5"
-        />
-      </svg>
-    </template>
+          <div class="panel mt-4">
+            <div class="text-sm font-semibold">Quick output</div>
+            <div class="mt-2 text-xs text-zinc-400">
+              This updates as you fill the wizard.
+            </div>
+            <div class="mt-3 space-y-2 text-sm">
+              <div>
+                <div class="label">Title</div>
+                <div id="qTitle" class="value"></div>
+              </div>
+              <div>
+                <div class="label">Angle / Perspective</div>
+                <div id="qAngle" class="value"></div>
+              </div>
+              <div>
+                <div class="label">CTA</div>
+                <div id="qCTA" class="value"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
 
-    <template id="tpl-icon-download">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 3v10m0 0 4-4m-4 4-4-4M4 17v3h16v-3"
-        />
-      </svg>
-    </template>
+        <section class="lg:col-span-6">
+          <div class="panel">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h1 id="stepTitle" class="text-base font-semibold"></h1>
+                <p id="stepDesc" class="mt-1 text-sm text-zinc-400"></p>
+              </div>
 
-    <template id="tpl-icon-plus">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 5v14M5 12h14"
-        />
-      </svg>
-    </template>
+              <div class="flex items-center gap-2">
+                <button id="btnAiFill" class="btn btn-secondary" type="button">
+                  Fill with AI
+                </button>
+              </div>
+            </div>
 
-    <template id="tpl-icon-library">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M4 19V6a2 2 0 0 1 2-2h12v17M8 6h8M8 10h8M8 14h8"
-        />
-      </svg>
-    </template>
+            <div id="aiStatus" class="mt-3 hidden rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"></div>
 
-    <template id="tpl-icon-wand">
-      <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
-        <path
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 3l.8 2.6L15 6l-2.2.4L12 9l-.8-2.6L9 6l2.2-.4L12 3Zm7 6-1.6.6L17 11l-.4-1.4L15 9l1.6-.6L17 7l.4 1.4L19 9ZM6 13l.8 2.6L9 16l-2.2.4L6 19l-.8-2.6L3 16l2.2-.4L6 13Zm4.5 2.5 10-10"
-        />
-      </svg>
-    </template>
+            <form id="stepForm" class="mt-4 space-y-4"></form>
 
-    <script src="./script.js" defer></script>
+            <div class="mt-5 flex items-center justify-between gap-3">
+              <button id="btnBack" class="btn btn-secondary" type="button">
+                Back
+              </button>
+
+              <div class="flex items-center gap-2">
+                <button id="btnNext" class="btn btn-primary" type="button">
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="lg:col-span-3">
+          <div class="panel">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-sm font-semibold">Draft / Final</div>
+              <button id="btnCopyFinal" class="btn btn-secondary btn-sm" type="button">
+                Copy
+              </button>
+            </div>
+            <div class="mt-2 text-xs text-zinc-400">
+              This shows your latest “final newsletter” field (or draft if final is empty).
+            </div>
+            <pre id="finalPreview" class="mt-3 whitespace-pre-wrap rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-200"></pre>
+          </div>
+
+          <div class="panel mt-4">
+            <div class="text-sm font-semibold">Local save</div>
+            <div id="saveMeta" class="mt-2 text-xs text-zinc-400"></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <dialog id="settingsModal" class="modal">
+      <div class="modal-card">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-semibold">Settings</div>
+            <div class="mt-1 text-xs text-zinc-400">
+              Key is encrypted and bound to this browser profile (can’t be copied to another device).
+            </div>
+          </div>
+          <button id="btnCloseSettings" class="icon-btn" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-3">
+          <label class="field">
+            <span class="field-label">OpenAI Endpoint</span>
+            <input
+              id="settingEndpoint"
+              class="input"
+              type="url"
+              spellcheck="false"
+              value="https://api.openai.com/v1/responses"
+            />
+          </label>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="field">
+              <span class="field-label">Model</span>
+              <input
+                id="settingModel"
+                class="input"
+                type="text"
+                spellcheck="false"
+                value="gpt-4.1-mini"
+              />
+            </label>
+            <label class="field">
+              <span class="field-label">Temperature</span>
+              <input
+                id="settingTemp"
+                class="input"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                max="2"
+                step="0.1"
+                value="0.7"
+              />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">API Key</span>
+            <input
+              id="settingApiKey"
+              class="input"
+              type="password"
+              placeholder="Paste your OpenAI API key"
+              spellcheck="false"
+              autocomplete="off"
+            />
+            <div class="mt-1 flex items-center justify-between gap-2">
+              <div id="keyStatus" class="text-xs text-zinc-400"></div>
+              <button id="btnClearKey" class="btn btn-secondary btn-sm" type="button">
+                Clear saved key
+              </button>
+            </div>
+          </label>
+
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button id="btnTestApi" class="btn btn-secondary" type="button">
+              Test API
+            </button>
+            <button id="btnSaveSettings" class="btn btn-primary" type="button">
+              Save
+            </button>
+          </div>
+
+          <div class="text-xs text-zinc-500 leading-relaxed">
+            Warning: Any client-side app can’t fully hide an API key from someone who can run code in the page.
+            The safer option is a tiny serverless proxy (Cloudflare Worker / Netlify Function) that keeps the key off the browser. :contentReference[oaicite:2]{index=2}
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="exportModal" class="modal">
+      <div class="modal-card">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-semibold">Export</div>
+            <div class="mt-1 text-xs text-zinc-400">
+              Download your session as JSON or Markdown.
+            </div>
+          </div>
+          <button id="btnCloseExport" class="icon-btn" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button id="btnDlJson" class="btn btn-secondary" type="button">Download JSON</button>
+          <button id="btnDlMd" class="btn btn-secondary" type="button">Download Markdown</button>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-xs text-zinc-400">Markdown Preview</div>
+          <pre id="mdPreview" class="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-200"></pre>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./script.js"></script>
   </body>
 </html>
