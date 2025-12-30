@@ -370,8 +370,8 @@ const normalizeAiProvider = (value) => {
   return "custom";
 };
 
-const buildAiRequest = (stepId, roundData, allowedFields) => {
-  const s = appState.settings.ai;
+const buildAiRequest = (stepId, roundData, allowedFields, settings = appState.settings.ai) => {
+  const s = settings;
   const title = safeText(roundData?.title?.finalTitle).trim();
   const direction = safeText(roundData?.topic?.direction).trim();
   const problem = safeText(roundData?.topic?.problemOneLiner).trim();
@@ -413,8 +413,8 @@ const buildAiHeaders = (provider, apiKey) => {
   return headers;
 };
 
-const buildAiPayload = (req) => {
-  const model = safeText(appState.settings.ai.model).trim() || undefined;
+const buildAiPayload = (req, settings = appState.settings.ai) => {
+  const model = safeText(settings.model).trim() || undefined;
   const contextJson = JSON.stringify(req.context);
 
   if (req.provider === "openai") {
@@ -1829,15 +1829,27 @@ const openAiSettingsModal = () => {
       const r = ensureActiveRound();
       const stepId = steps[r.currentStep].id;
       const allowed = AI_FIELDS_BY_STEP[stepId] || [];
-      const req = buildAiRequest(stepId, r.data, allowed);
+      const fillMode = safeText(qs("#aiFillMode")?.value).trim();
+      const testSettings = {
+        ...appState.settings.ai,
+        model: safeText(qs("#aiModel")?.value).trim(),
+        apiKey: safeText(qs("#aiKey")?.value).trim(),
+        provider: normalizeAiProvider(safeText(qs("#aiProvider")?.value).trim()),
+        fillMode: fillMode === "all" ? "all" : "missing",
+        allowLongDraft: !!qs("#aiAllowDraft")?.checked,
+        timeoutMs: clamp(Number(qs("#aiTimeout")?.value) || 45000, 5000, 180000)
+      };
+      const req = buildAiRequest(stepId, r.data, allowed, testSettings);
+      const headers = buildAiHeaders(req.provider, testSettings.apiKey);
+      const payload = buildAiPayload(req, testSettings);
 
       const resp = await withTimeout(
         fetch(endpoint, {
           method: "POST",
-          headers: buildAiHeaders(req.provider, appState.settings.ai.apiKey),
-          body: JSON.stringify(buildAiPayload(req))
+          headers,
+          body: JSON.stringify(payload)
         }),
-        10000
+        testSettings.timeoutMs
       );
 
       if (!resp.ok) throw new Error(`Status ${resp.status}`);
