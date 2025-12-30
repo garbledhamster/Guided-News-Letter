@@ -162,6 +162,7 @@ const defaultAppState = () => ({
       endpoint: "",
       apiKey: "",
       model: "gpt-4.1-mini",
+      provider: "custom",
       fillMode: "missing",
       allowLongDraft: false,
       timeoutMs: 45000
@@ -357,6 +358,18 @@ const withTimeout = async (promise, ms) => {
   finally { clearTimeout(t); }
 };
 
+const AI_PROVIDERS = [
+  { id: "custom", label: "Custom JSON" },
+  { id: "openai", label: "OpenAI-compatible" },
+  { id: "anthropic", label: "Anthropic-compatible" }
+];
+
+const normalizeAiProvider = (value) => {
+  if (value === "openai") return "openai";
+  if (value === "anthropic") return "anthropic";
+  return "custom";
+};
+
 const buildAiRequest = (stepId, roundData, allowedFields) => {
   const s = appState.settings.ai;
   const title = safeText(roundData?.title?.finalTitle).trim();
@@ -384,7 +397,114 @@ const buildAiRequest = (stepId, roundData, allowedFields) => {
     current_round_data: roundData
   };
 
-  return { system, context };
+  return { system, context, provider: normalizeAiProvider(s.provider) };
+};
+
+const buildAiHeaders = (provider, apiKey) => {
+  const headers = { "Content-Type": "application/json" };
+  const key = safeText(apiKey).trim();
+  if (!key) return headers;
+  if (provider === "anthropic") {
+    headers["x-api-key"] = key;
+    headers["anthropic-version"] = "2023-06-01";
+  } else {
+    headers["Authorization"] = `Bearer ${key}`;
+  }
+  return headers;
+};
+
+const buildAiPayload = (req) => {
+  const model = safeText(appState.settings.ai.model).trim() || undefined;
+  const contextJson = JSON.stringify(req.context);
+
+  if (req.provider === "openai") {
+    return {
+      model,
+      messages: [
+        { role: "system", content: req.system },
+        { role: "user", content: contextJson }
+      ]
+    };
+  }
+
+  if (req.provider === "anthropic") {
+    return {
+      model,
+      system: req.system,
+      messages: [{ role: "user", content: contextJson }],
+      max_tokens: 1024
+    };
+  }
+
+  return { system: req.system, input: req.context, model };
+};
+
+const extractOpenAiContent = (payload) =>
+  safeText(payload?.choices?.[0]?.message?.content || payload?.choices?.[0]?.text || "");
+
+const extractAnthropicContent = (payload) => {
+  if (Array.isArray(payload?.content)) {
+    return payload.content.map((part) => safeText(part?.text)).join("");
+  }
+  return safeText(payload?.completion || payload?.message?.content || "");
+};
+
+const validateAiUpdates = (updates, allowedFields) => {
+  if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
+    throw new Error("AI response missing updates object");
+  }
+
+  const allowed = new Set(allowedFields || []);
+  const sanitized = {};
+
+  for (const [path, value] of Object.entries(updates)) {
+    if (typeof path !== "string") continue;
+    if (
+      allowed.has(path) ||
+      path === "outline.sections" ||
+      path === "outline.problem" ||
+      path === "outline.insight" ||
+      path === "outline.solution" ||
+      path === "publish.checklist" ||
+      path.startsWith("topic.checklist.")
+    ) {
+      sanitized[path] = value;
+    }
+  }
+
+  return sanitized;
+};
+
+const parseAiResponse = (provider, rawText, allowedFields) => {
+  let payload;
+  try { payload = JSON.parse(rawText); }
+  catch { throw new Error("AI response was not valid JSON"); }
+
+  const normalizeParsed = (parsed) => {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("AI response was not an object");
+    }
+    const notes = safeText(parsed.notes);
+    const updates = validateAiUpdates(parsed.updates, allowedFields);
+    return { updates, notes };
+  };
+
+  if (provider === "custom") return normalizeParsed(payload);
+
+  const content =
+    provider === "openai"
+      ? extractOpenAiContent(payload)
+      : extractAnthropicContent(payload);
+
+  if (!safeText(content).trim()) {
+    throw new Error("AI response missing message content");
+  }
+
+  let parsedContent;
+  try { parsedContent = JSON.parse(content); }
+  catch { throw new Error("AI response message was not valid JSON"); }
+
+  return normalizeParsed(parsedContent);
 };
 
 const aiAutofillCurrentStep = async () => {
@@ -411,19 +531,14 @@ const aiAutofillCurrentStep = async () => {
 
   try {
     const req = buildAiRequest(stepId, r.data, allowed);
-
-    const headers = { "Content-Type": "application/json" };
-    if (safeText(s.apiKey).trim()) headers["Authorization"] = `Bearer ${safeText(s.apiKey).trim()}`;
+    const headers = buildAiHeaders(req.provider, s.apiKey);
+    const payload = buildAiPayload(req);
 
     const resp = await withTimeout(
       fetch(s.endpoint, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          system: req.system,
-          input: req.context,
-          model: safeText(s.model).trim() || undefined
-        })
+        body: JSON.stringify(payload)
       }),
       clamp(Number(s.timeoutMs) || 45000, 5000, 180000)
     );
@@ -434,19 +549,10 @@ const aiAutofillCurrentStep = async () => {
     }
 
     const raw = await resp.text();
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch {
-      throw new Error("AI response was not valid JSON");
-    }
+    const parsed = parseAiResponse(req.provider, raw, allowed);
 
-    const updates = parsed && typeof parsed === "object" ? parsed.updates : null;
-    const notes = parsed && typeof parsed === "object" ? safeText(parsed.notes) : "";
-
-    if (!updates || typeof updates !== "object") throw new Error("AI response missing updates object");
-
-    applyAiUpdates(stepId, updates);
-    r.data.ai.lastNotes = notes || "";
+    applyAiUpdates(stepId, parsed.updates);
+    r.data.ai.lastNotes = parsed.notes || "";
     r.name = suggestRoundName(r.data) || r.name;
 
     setRoundUpdated();
@@ -1634,6 +1740,15 @@ const openAiSettingsModal = () => {
 
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="block">
+              <div class="text-sm font-medium">Provider</div>
+              <select id="aiProvider" class="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-indigo-500/30 focus:ring-4 dark:border-zinc-800 dark:bg-zinc-950">
+                ${AI_PROVIDERS.map((provider) => `
+                  <option value="${provider.id}" ${normalizeAiProvider(ai.provider) === provider.id ? "selected" : ""}>${provider.label}</option>
+                `).join("")}
+              </select>
+            </label>
+
+            <label class="block">
               <div class="text-sm font-medium">Model (optional)</div>
               <input id="aiModel" class="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-indigo-500/30 focus:ring-4 dark:border-zinc-800 dark:bg-zinc-950" value="${escapeHtml(ai.model)}" placeholder="model name your endpoint expects" />
             </label>
@@ -1675,7 +1790,7 @@ const openAiSettingsModal = () => {
 
           <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
             <div class="font-semibold">Expected response</div>
-            <div class="mt-1 text-zinc-600 dark:text-zinc-400">{"updates": {"topic.problemOneLiner": "...", ...}, "notes": "short explanation"}</div>
+            <div class="mt-1 text-zinc-600 dark:text-zinc-400">{"updates": {"topic.problemOneLiner": "...", ...}, "notes": "short explanation"} (for OpenAI/Anthropic, return this JSON in the message content)</div>
           </div>
         </div>
       </div>
@@ -1688,6 +1803,7 @@ const openAiSettingsModal = () => {
     const endpoint = safeText(qs("#aiEndpoint")?.value).trim();
     const model = safeText(qs("#aiModel")?.value).trim();
     const apiKey = safeText(qs("#aiKey")?.value).trim();
+    const provider = normalizeAiProvider(safeText(qs("#aiProvider")?.value).trim());
     const fillMode = safeText(qs("#aiFillMode")?.value).trim() || "missing";
     const allowLongDraft = !!qs("#aiAllowDraft")?.checked;
     const timeoutMs = Number(qs("#aiTimeout")?.value) || 45000;
@@ -1695,6 +1811,7 @@ const openAiSettingsModal = () => {
     appState.settings.ai.endpoint = endpoint;
     appState.settings.ai.model = model;
     appState.settings.ai.apiKey = apiKey;
+    appState.settings.ai.provider = provider;
     appState.settings.ai.fillMode = fillMode === "all" ? "all" : "missing";
     appState.settings.ai.allowLongDraft = allowLongDraft;
     appState.settings.ai.timeoutMs = clamp(timeoutMs, 5000, 180000);
@@ -1717,15 +1834,15 @@ const openAiSettingsModal = () => {
       const resp = await withTimeout(
         fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ system: req.system, input: req.context })
+          headers: buildAiHeaders(req.provider, appState.settings.ai.apiKey),
+          body: JSON.stringify(buildAiPayload(req))
         }),
         10000
       );
 
       if (!resp.ok) throw new Error(`Status ${resp.status}`);
       const raw = await resp.text();
-      JSON.parse(raw);
+      parseAiResponse(req.provider, raw, allowed);
       toast("Endpoint looks good (valid JSON).", "ok");
     } catch (e) {
       toast("Test failed: " + (e?.message || "error"), "bad");
