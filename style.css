@@ -1,165 +1,30 @@
 :root {
-  color-scheme: dark;
+  --shadow-soft: 0 1px 0 rgba(0, 0, 0, 0.06), 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.panel {
-  border: 1px solid rgb(39 39 42 / 0.9);
-  background: rgb(24 24 27 / 0.55);
-  border-radius: 1rem;
-  padding: 1rem;
+* { box-sizing: border-box; }
+
+::selection { background: rgba(99, 102, 241, 0.25); }
+
+html, body { height: 100%; }
+
+body[data-focus="true"] #sidebar { display: none; }
+
+body[data-focus="true"] #mainWrap { grid-template-columns: 1fr; }
+
+body[data-focus="true"] #contentCard {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
 }
 
-.label {
-  font-size: 0.75rem;
-  color: rgb(161 161 170);
-}
+.scroll-soft::-webkit-scrollbar { height: 10px; width: 10px; }
 
-.value {
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: rgb(228 228 231);
-  line-height: 1.25rem;
-  word-break: break-word;
-}
-
-.btn {
-  border-radius: 0.9rem;
-  padding: 0.55rem 0.85rem;
-  font-size: 0.875rem;
-  line-height: 1.1rem;
-  border: 1px solid rgb(63 63 70 / 0.9);
-  background: rgb(24 24 27 / 0.8);
-  color: rgb(244 244 245);
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-
-.btn:hover {
-  background: rgb(39 39 42 / 0.9);
-  border-color: rgb(82 82 91);
-}
-
-.btn:active {
-  transform: translateY(1px);
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  border-color: rgb(250 204 21 / 0.55);
-  background: rgb(63 63 70 / 0.55);
-}
-
-.btn-primary:hover {
-  border-color: rgb(250 204 21 / 0.85);
-  background: rgb(63 63 70 / 0.75);
-}
-
-.btn-secondary {
-  background: rgb(24 24 27 / 0.6);
-}
-
-.btn-sm {
-  padding: 0.4rem 0.6rem;
-  font-size: 0.75rem;
-}
-
-.icon-btn {
-  border-radius: 0.9rem;
-  padding: 0.4rem;
-  border: 1px solid rgb(63 63 70 / 0.9);
-  background: rgb(24 24 27 / 0.8);
-  color: rgb(228 228 231);
-}
-
-.icon-btn:hover {
-  background: rgb(39 39 42 / 0.9);
-  border-color: rgb(82 82 91);
-}
-
-.field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.field-label {
-  font-size: 0.75rem;
-  color: rgb(161 161 170);
-}
-
-.input,
-.textarea {
-  width: 100%;
-  border-radius: 0.9rem;
-  border: 1px solid rgb(63 63 70 / 0.95);
-  background: rgb(9 9 11 / 0.7);
-  padding: 0.6rem 0.75rem;
-  font-size: 0.875rem;
-  color: rgb(244 244 245);
-  outline: none;
-}
-
-.textarea {
-  min-height: 7.5rem;
-  resize: vertical;
-}
-
-.input:focus,
-.textarea:focus {
-  border-color: rgb(250 204 21 / 0.75);
-}
-
-.step-btn {
-  width: 100%;
-  text-align: left;
-  border-radius: 0.9rem;
-  border: 1px solid rgb(63 63 70 / 0.7);
-  background: rgb(9 9 11 / 0.35);
-  padding: 0.7rem 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.step-btn:hover {
-  border-color: rgb(82 82 91);
-  background: rgb(24 24 27 / 0.5);
-}
-
-.step-dot {
-  width: 0.7rem;
-  height: 0.7rem;
+.scroll-soft::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.5);
   border-radius: 999px;
-  border: 1px solid rgb(82 82 91);
-  background: rgb(9 9 11);
 }
 
-.step-dot.done {
-  border-color: rgb(34 197 94 / 0.75);
-  background: rgb(34 197 94 / 0.25);
-}
-
-.step-dot.active {
-  border-color: rgb(250 204 21 / 0.9);
-  background: rgb(250 204 21 / 0.2);
-}
-
-.modal::backdrop {
-  background: rgb(0 0 0 / 0.65);
-}
-
-.modal {
-  border: none;
-  padding: 0;
-  background: transparent;
-  width: min(760px, calc(100vw - 2rem));
-}
-
-.modal-card {
-  border: 1px solid rgb(39 39 42 / 0.9);
-  background: rgb(9 9 11 / 0.92);
-  border-radius: 1rem;
-  padding: 1rem;
+.dark .scroll-soft::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.55);
 }
