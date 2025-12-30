@@ -413,11 +413,24 @@ const buildAiHeaders = (provider, apiKey) => {
   return headers;
 };
 
+const isOpenAiResponsesEndpoint = (endpoint) =>
+  /\/responses(?:\?|$)/i.test(safeText(endpoint).trim());
+
 const buildAiPayload = (req, settings = appState.settings.ai) => {
   const model = safeText(settings.model).trim() || undefined;
   const contextJson = JSON.stringify(req.context);
 
   if (req.provider === "openai") {
+    if (isOpenAiResponsesEndpoint(settings.endpoint)) {
+      return {
+        model,
+        input: [
+          { role: "system", content: req.system },
+          { role: "user", content: contextJson }
+        ]
+      };
+    }
+
     return {
       model,
       messages: [
@@ -439,8 +452,22 @@ const buildAiPayload = (req, settings = appState.settings.ai) => {
   return { system: req.system, input: req.context, model };
 };
 
-const extractOpenAiContent = (payload) =>
-  safeText(payload?.choices?.[0]?.message?.content || payload?.choices?.[0]?.text || "");
+const extractOpenAiContent = (payload) => {
+  const directText = safeText(payload?.output_text);
+  if (directText) return directText;
+
+  if (Array.isArray(payload?.output)) {
+    for (const item of payload.output) {
+      if (!Array.isArray(item?.content)) continue;
+      for (const part of item.content) {
+        const text = safeText(part?.text);
+        if (text) return text;
+      }
+    }
+  }
+
+  return safeText(payload?.choices?.[0]?.message?.content || payload?.choices?.[0]?.text || "");
+};
 
 const extractAnthropicContent = (payload) => {
   if (Array.isArray(payload?.content)) {
